@@ -21,35 +21,32 @@ struct Dictionary {
 }
 
 impl Dictionary {
-    pub fn new() -> Self {
-        Self { hashmap: HashMap::new() }
+    pub fn new(dict_path: &str) -> Self {
+        Self { 
+            hashmap: Self::load(dict_path)
+        }
     }
-    pub fn insert(&mut self, key: String, value: String) {
-        self.hashmap.insert(key, value);
-    }
-    pub fn get_rules(&self, word: &str) -> Vec<String> {
-        let mut rules: Vec<String> = vec![];
+    fn load(dictpath: &str) -> HashMap<String, String> {
+        let mut dictionary: HashMap<String, String> = HashMap::new();
 
-        let rule = self.hashmap.get(word).unwrap();
+        if let Ok(lines) = read_lines(dictpath) {
+            for line in lines.flatten() {
+                let record: Vec<&str> = line.split("/").collect();
+                if (record.len() == 2) {
+                dictionary.insert(record[0].to_string(), record[1].to_string());
+                }
+            }
+        }
+        dictionary
+    }
+
+
+    pub fn get_rules(&self, word: &str) -> Vec<char> {
+        let rules: Vec<char> = self.hashmap.get(word).unwrap().chars().collect();
 
         rules
     }
 }
-
-fn load_dict(filename: &str) -> HashMap<String, String> {
-    let mut dictionary: HashMap<String, String> = HashMap::new();
-
-    if let Ok(lines) = read_lines(filename) {
-        for line in lines.flatten() {
-            let record: Vec<&str> = line.split("/").collect();
-            if (record.len() == 2) {
-            dictionary.insert(record[0].to_string(), record[1].to_string());
-            }
-        }
-    }
-    dictionary
-}
-
 
 fn apply_rule(base_word: &str, rule: &str) -> Vec<String> {
     let generated_words: Vec<String> = vec![];
@@ -57,16 +54,6 @@ fn apply_rule(base_word: &str, rule: &str) -> Vec<String> {
 
     generated_words
 }
-
-
-// Generates all possible words
-fn generate_dictionary() -> Vec<String> {
-    let possible_words: Vec<String> = vec![];
-
-    possible_words
-}
-
-
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -76,17 +63,12 @@ fn main() {
     }
     let dic_path: &str = &args[1];
     let aff_path: &str = &args[2];
+    println!("Dict path:{}, Aff path: {}", dic_path, aff_path);
 
-    // Print out .dic file contents
-    if let Ok(lines) = read_lines(dic_path) {
-        for line in lines.flatten() {
-            let record: Vec<&str> = line.split("/").collect();
-            if (record.len() == 2) {
-            println!("{}, rule: {}", record[0], record[1]);
-            }
-        }
-    }
+    let dictionary = Dictionary::new(dic_path);
+    let term = "dom";
+    println!("Word: {}, Rules: {:?}", term, dictionary.get_rules(term))
 
     
-    println!("Dict path:{}, Aff path: {}", dic_path, aff_path);
+
 }
