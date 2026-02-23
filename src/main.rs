@@ -48,6 +48,12 @@ impl Dictionary {
     }
 }
 
+struct Rule {
+    remove: String,
+    add: String,
+    condition: String
+}
+
 fn apply_rule(base_word: &str, rule: &str) -> Vec<String> {
     let generated_words: Vec<String> = vec![];
 
