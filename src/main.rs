@@ -1,6 +1,6 @@
 // Libraries for the file reader
 use std::fs::File;
-use std::io::{self, BufRead};
+use std::io::{self, BufRead, Read};
 use std::path::Path;
 
 // For reading CLI args
@@ -8,6 +8,9 @@ use std::env;
 
 // For loading .dic and .aff files
 use std::collections::HashMap;
+
+// For parsing .aff files
+use regex;
 
 // Efficient implementation from Rust docs
 fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
@@ -39,20 +42,26 @@ impl Dictionary {
         }
         dictionary
     }
-
-
     pub fn get_rules(&self, word: &str) -> Vec<char> {
         let rules: Vec<char> = self.hashmap.get(word).unwrap().chars().collect();
 
         rules
     }
+
 }
 
-fn apply_rule(base_word: &str, rule: &str) -> Vec<String> {
-    let generated_words: Vec<String> = vec![];
+struct Rules {
+    kind: String,
+    flag: char,
+    can_be_combined: bool,
 
 
-    generated_words
+}
+
+
+
+fn apply_rule(word: &str) {
+
 }
 
 fn main() {
@@ -66,9 +75,16 @@ fn main() {
     println!("Dict path:{}, Aff path: {}", dic_path, aff_path);
 
     let dictionary = Dictionary::new(dic_path);
-    let term = "dom";
-    println!("Word: {}, Rules: {:?}", term, dictionary.get_rules(term))
 
-    
+let mut term = String::new();
+    loop {
+        term.clear();
+        println!("-----------------------------------");
+        println!("Wpisz słowo, które chcesz wyszukać:");
+        io::stdin().read_line(&mut term).expect("Błąd w odczytywaniu słowa");
+        let term = term.trim();
+
+        println!("Słowo: {}, Zasady: {:?}", term, dictionary.get_rules(&term))
+    }
 
 }
