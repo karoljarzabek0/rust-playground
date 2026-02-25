@@ -60,6 +60,12 @@ struct Rules {
 
 
 
+struct Rule {
+    remove: String,
+    add: String,
+    condition: String
+}
+
 fn apply_rule(word: &str) {
 
 }
