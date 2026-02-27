@@ -1,7 +1,8 @@
+use std::fmt::format;
 // Libraries for the file reader
 use std::fs::{File, read};
 use std::hash::Hash;
-use std::io::{self, BufRead, Read};
+use std::io::{self, BufRead, BufWriter, Read, Write};
 use std::path::Path;
 
 // For reading CLI args
@@ -9,15 +10,24 @@ use std::env::{self, current_exe};
 
 // For loading .dic and .aff files
 use std::collections::HashMap;
+use std::time;
 
 // For parsing .aff files
-use regex;
+use regex::{Regex, bytes};
 
 // Efficient implementation from Rust docs
 fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
 where P: AsRef<Path>, {
     let file = File::open(filename)?;
     Ok(io::BufReader::new(file).lines())
+}
+// Capitalizes the first character in s - necessary since not all rules can be found in the lowercase variations
+pub fn capitalize(s: &str) -> String {
+    let mut c = s.chars();
+    match c.next() {
+        None => String::new(),
+        Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
+    }
 }
 
 struct Dictionary {
@@ -31,25 +41,30 @@ impl Dictionary {
         }
     }
     fn load(dictpath: &str) -> HashMap<String, String> {
+        let start = time::Instant::now();
         let mut dictionary: HashMap<String, String> = HashMap::new();
 
         if let Ok(lines) = read_lines(dictpath) {
+
             for line in lines.flatten() {
                 let record: Vec<&str> = line.split("/").collect();
-                if (record.len() == 2) {
+                if record.len() == 2 {
                 dictionary.insert(record[0].to_string(), record[1].to_string());
                 }
             }
         }
+        let elapsed_time = start.elapsed();
+        println!(".dic file loaded in {} seconds", elapsed_time.as_secs_f32());
         dictionary
     }
     pub fn get_rules(&self, word: &str) -> Vec<char> {
-        let rules: Vec<char> = self.hashmap.get(word).unwrap().chars().collect();
+        self.hashmap
+            .get(word)
+            .map(|s| s.chars().collect())
+            .unwrap_or_else(|| vec![])
 
-        rules
+        }
     }
-
-}
 
 
 #[derive(Debug)]
@@ -74,11 +89,12 @@ struct Rule {
 
 impl AffFile {
     pub fn new(aff_path: &str) -> Self {
-        Self { 
+        Self {
             groups: Self::load(aff_path)
         }
     }
     fn load(aff_path: &str) -> HashMap<char, RuleGroup> {
+        let start = time::Instant::now();
         let mut rule_groups: HashMap<char, RuleGroup> = HashMap::new();
 
         if let Ok(lines) = read_lines(aff_path) {
@@ -114,22 +130,83 @@ impl AffFile {
                 } else {
                     current_flag_char = ' ';
                 }
-
-                println!("{:?}, group: {:?}", record, current_flag_char);
-
+                //println!("{:?}, group: {:?}", record, current_flag_char);
                 }
-            println!("{:?}", rule_groups);
-            
+            //println!("{:?}", rule_groups);
             }
-
+        let elapsed_time = start.elapsed();
+        println!(".aff file loaded in {} seconds", elapsed_time.as_secs_f32());
         rule_groups
         }
+
+        pub fn apply_rule(&self, word: &str, rule_flag: char) -> Vec<String> {
+            let mut declinations: Vec<String> = vec![];
+            let result = self.groups.get(&rule_flag).unwrap();
+
+            for rule in &result.rules {
+                let formatted_remove_rule = format!("{}$", rule.condition);
+                let re = Regex::new(&formatted_remove_rule).unwrap();
+
+                if re.is_match(word) {
+                    let remove_snippet = if &rule.remove == "0" { "" } else { &rule.remove };
+                    let add_snippet = if &rule.add == "0" { "" } else { &rule.add };
+
+                    let word_version = format!(
+                                        "{}{}",
+                                        word.strip_suffix(remove_snippet).unwrap_or_default(),
+                                        add_snippet
+                                    );
+                    declinations.push(word_version);
+                    //println!("{word_version} [for flag '{rule_flag}'] - Warunek: {formatted_remove_rule}");
+                }
+                //  else {
+                //     let remove_snippet = if &rule.remove == "0" { "" } else { &rule.remove };
+                //     let add_snippet = if &rule.add == "0" { "" } else { &rule.add };
+
+                //     let word_version = format!(
+                //                         "{}{}",
+                //                         word.strip_suffix(remove_snippet).unwrap_or_default(),
+                //                         add_snippet
+                //                     );
+                //     //println!("{word_version} [for flag '{rule_flag}'] <- NIEPOPRAWNE - Warunek: {formatted_remove_rule}");
+                // }
+
+            }
+
+            declinations
+            }
+
+
+}
+
+fn generate_full_dictionary(dict: &Dictionary, aff: &AffFile) -> HashMap<String, String> {
+
+    let f = File::create("data/dictionary1.txt").unwrap();
+    let mut writer = BufWriter::new(f);
+
+    let full_dictionary: HashMap<String, String> = HashMap::new();
+
+    for (word, rules) in &dict.hashmap {
+        let flags: Vec<char> = rules.chars().collect();
+        for flag in flags {
+            let word_declinations = aff.apply_rule(word, flag);
+            for declination in word_declinations {
+                let record = format!("{},{}\n", declination, word);
+                let result = writer.write(record.as_bytes());
+                println!("{}: {} | Written {:?} bytes", declination, word, result);
+            }
+
+            //println!("{:?}", {aff.apply_rule(word, flag)})
+
+        }
+        //println!("{}: \"{:?}\"", word, rules_vec);
+    }
+    
+
+    full_dictionary
 }
 
 
-fn apply_rule(word: &str) {
-
-}
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -146,14 +223,26 @@ fn main() {
     let dictionary = Dictionary::new(dic_path);
 
     let mut term = String::new();
+    generate_full_dictionary(&dictionary, &aff_file);
+
     loop {
         term.clear();
         println!("-----------------------------------");
         println!("Wpisz słowo, które chcesz wyszukać:");
         io::stdin().read_line(&mut term).expect("Błąd w odczytywaniu słowa");
-        let term = term.trim();
 
-        println!("Słowo: {}, Zasady: {:?}", term, dictionary.get_rules(&term))
+        let start = time::Instant::now();
+        let term = term.trim();
+        let mut flags = dictionary.get_rules(&term);
+        let mut capitalized_word_flags = dictionary.get_rules(&capitalize(&term));
+
+        flags.append(&mut capitalized_word_flags);
+        println!("Słowo: {}, Zasady: {:?}", term, flags);
+        for flag in flags {
+            println!("{:?}", {aff_file.apply_rule(term, flag)})
+        }
+        let elapsed_time = start.elapsed();
+        println!("Applying rules took {} seconds", elapsed_time.as_secs_f32())
     }
 
 }
