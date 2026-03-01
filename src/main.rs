@@ -206,6 +206,24 @@ fn generate_full_dictionary(dict: &Dictionary, aff: &AffFile) -> HashMap<String,
     full_dictionary
 }
 
+fn read_full_dictionary(path: &str) -> HashMap<String, String> {
+    let start = time::Instant::now();
+
+    let mut full_dictionary: HashMap<String, String> = HashMap::new();
+
+    if let Ok(lines) = read_lines(path) {
+
+        for line in lines.flatten() {
+            let record: Vec<&str> = line.split(",").collect();
+            if record.len() == 2 {
+            full_dictionary.insert(record[0].to_string(), record[1].to_string());
+            }
+        }
+    }
+    let elapsed_time = start.elapsed();
+    println!("Full dictionary mapping file loaded in {} seconds", elapsed_time.as_secs_f32());
+    full_dictionary
+}
 
 
 fn main() {
@@ -223,7 +241,10 @@ fn main() {
     let dictionary = Dictionary::new(dic_path);
 
     let mut term = String::new();
-    generate_full_dictionary(&dictionary, &aff_file);
+
+    // Full dictionary already generated
+    //generate_full_dictionary(&dictionary, &aff_file);
+    let full_map = read_full_dictionary("data/dictionary1.txt");
 
     loop {
         term.clear();
@@ -238,9 +259,16 @@ fn main() {
 
         flags.append(&mut capitalized_word_flags);
         println!("Słowo: {}, Zasady: {:?}", term, flags);
-        for flag in flags {
-            println!("{:?}", {aff_file.apply_rule(term, flag)})
+
+        if flags.len() > 0 {
+            for flag in flags {
+                println!("{:?}", {aff_file.apply_rule(term, flag)})
+            }
+        } else {
+            println!("{} to nie jest bazowe słowo, jego forma podstawowa to: {:?}", term, full_map.get(term));
         }
+
+
         let elapsed_time = start.elapsed();
         println!("Applying rules took {} seconds", elapsed_time.as_secs_f32())
     }
