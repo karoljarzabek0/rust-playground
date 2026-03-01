@@ -66,7 +66,6 @@ impl Dictionary {
         }
     }
 
-
 #[derive(Debug)]
 struct AffFile {
     groups: HashMap<char, RuleGroup>
